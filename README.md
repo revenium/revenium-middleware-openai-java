@@ -1,6 +1,6 @@
 # Revenium Middleware for OpenAI Java SDK
 
-Transparent metering middleware for the [OpenAI Java SDK](https://github.com/openai/openai-java). Wraps client services to automatically report AI usage metrics (token counts, costs, timing, model info, and business metadata) to [Revenium](https://revenium.io) with zero changes to your application logic.
+Transparent metering middleware for the [OpenAI Java SDK](https://github.com/openai/openai-java). Wraps client services to automatically report AI usage metrics (token counts, costs, timing, model info, and business metadata) to [Revenium](https://revenium.ai) with zero changes to your application logic.
 
 ## Features
 
@@ -118,10 +118,10 @@ System.out.println(completion.choices().get(0).message().content());
 
 ### Environment Variables
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `REVENIUM_METERING_API_KEY` | Yes | -- | Your Revenium API key (starts with `hak_`) |
-| `REVENIUM_METERING_BASE_URL` | No | `https://api.revenium.io` | Revenium API base URL |
+| Variable | Required | Default                  | Description |
+|----------|----------|--------------------------|-------------|
+| `REVENIUM_METERING_API_KEY` | Yes | --                       | Your Revenium API key (starts with `hak_`) |
+| `REVENIUM_METERING_BASE_URL` | No | `https://api.revenium.ai` | Revenium API base URL |
 
 ### Programmatic Configuration
 
@@ -130,7 +130,7 @@ import io.revenium.metering.openai.config.ReveniumConfig;
 
 ReveniumConfig config = ReveniumConfig.builder()
     .apiKey("hak_your_tenant_yourkey")
-    .baseUrl("https://api.revenium.io")  // optional
+    .baseUrl("https://api.revenium.ai")  // optional
     .build();
 
 ReveniumInstrumentedClient client = ReveniumOpenAIMiddleware.wrap(openai, config);
