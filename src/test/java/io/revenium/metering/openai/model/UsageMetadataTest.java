@@ -21,9 +21,9 @@ class UsageMetadataTest {
         assertThat(meta.traceId()).isNull();
         assertThat(meta.taskType()).isNull();
         assertThat(meta.subscriber()).isNull();
-        assertThat(meta.organizationId()).isNull();
+        assertThat(meta.organizationName()).isNull();
         assertThat(meta.subscriptionId()).isNull();
-        assertThat(meta.productId()).isNull();
+        assertThat(meta.productName()).isNull();
         assertThat(meta.agent()).isNull();
         assertThat(meta.responseQualityScore()).isNull();
     }
@@ -33,9 +33,9 @@ class UsageMetadataTest {
         UsageMetadata meta = UsageMetadata.builder()
             .traceId("trace-123")
             .taskType("summarization")
-            .organizationId("org-abc")
+            .organizationName("org-abc")
             .subscriptionId("sub-xyz")
-            .productId("prod-1")
+            .productName("prod-1")
             .agent("agent-name")
             .responseQualityScore(0.95)
             .subscriber(Subscriber.builder()
@@ -50,9 +50,9 @@ class UsageMetadataTest {
 
         assertThat(meta.traceId()).isEqualTo("trace-123");
         assertThat(meta.taskType()).isEqualTo("summarization");
-        assertThat(meta.organizationId()).isEqualTo("org-abc");
+        assertThat(meta.organizationName()).isEqualTo("org-abc");
         assertThat(meta.subscriptionId()).isEqualTo("sub-xyz");
-        assertThat(meta.productId()).isEqualTo("prod-1");
+        assertThat(meta.productName()).isEqualTo("prod-1");
         assertThat(meta.agent()).isEqualTo("agent-name");
         assertThat(meta.responseQualityScore()).isEqualTo(0.95);
         assertThat(meta.subscriber().id()).isEqualTo("user-1");

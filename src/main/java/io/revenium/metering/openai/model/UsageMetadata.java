@@ -25,9 +25,9 @@ public final class UsageMetadata {
     private final String traceId;
     private final String taskType;
     private final Subscriber subscriber;
-    private final String organizationId;
+    private final String organizationName;
     private final String subscriptionId;
-    private final String productId;
+    private final String productName;
     private final String agent;
     private final Double responseQualityScore;
 
@@ -35,9 +35,9 @@ public final class UsageMetadata {
         this.traceId = builder.traceId;
         this.taskType = builder.taskType;
         this.subscriber = builder.subscriber;
-        this.organizationId = builder.organizationId;
+        this.organizationName = builder.organizationName;
         this.subscriptionId = builder.subscriptionId;
-        this.productId = builder.productId;
+        this.productName = builder.productName;
         this.agent = builder.agent;
         this.responseQualityScore = builder.responseQualityScore;
     }
@@ -57,9 +57,9 @@ public final class UsageMetadata {
         return subscriber;
     }
 
-    /** Returns the organization ID, or null if not set. */
-    public String organizationId() {
-        return organizationId;
+    /** Returns the organization name, or null if not set. */
+    public String organizationName() {
+        return organizationName;
     }
 
     /** Returns the subscription ID, or null if not set. */
@@ -67,9 +67,9 @@ public final class UsageMetadata {
         return subscriptionId;
     }
 
-    /** Returns the product ID, or null if not set. */
-    public String productId() {
-        return productId;
+    /** Returns the product name, or null if not set. */
+    public String productName() {
+        return productName;
     }
 
     /** Returns the agent name or identifier, or null if not set. */
@@ -96,9 +96,9 @@ public final class UsageMetadata {
         private String traceId;
         private String taskType;
         private Subscriber subscriber;
-        private String organizationId;
+        private String organizationName;
         private String subscriptionId;
-        private String productId;
+        private String productName;
         private String agent;
         private Double responseQualityScore;
 
@@ -119,8 +119,8 @@ public final class UsageMetadata {
             return this;
         }
 
-        public Builder organizationId(String organizationId) {
-            this.organizationId = organizationId;
+        public Builder organizationName(String organizationName) {
+            this.organizationName = organizationName;
             return this;
         }
 
@@ -129,8 +129,8 @@ public final class UsageMetadata {
             return this;
         }
 
-        public Builder productId(String productId) {
-            this.productId = productId;
+        public Builder productName(String productName) {
+            this.productName = productName;
             return this;
         }
 
