@@ -231,9 +231,9 @@ final class MeteringStreamResponse implements StreamResponse<ChatCompletionChunk
             if (metadata != null) {
                 builder.traceId(metadata.traceId())
                         .taskType(metadata.taskType())
-                        .organizationId(metadata.organizationId())
+                        .organizationName(metadata.organizationName())
                         .subscriptionId(metadata.subscriptionId())
-                        .productId(metadata.productId())
+                        .productName(metadata.productName())
                         .agent(metadata.agent())
                         .responseQualityScore(metadata.responseQualityScore())
                         .subscriber(metadata.subscriber());
