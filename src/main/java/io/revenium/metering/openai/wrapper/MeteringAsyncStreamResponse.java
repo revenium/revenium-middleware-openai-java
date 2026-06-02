@@ -262,9 +262,9 @@ final class MeteringAsyncStreamResponse implements AsyncStreamResponse<ChatCompl
             if (metadataVal != null) {
                 builder.traceId(metadataVal.traceId())
                         .taskType(metadataVal.taskType())
-                        .organizationId(metadataVal.organizationId())
+                        .organizationName(metadataVal.organizationName())
                         .subscriptionId(metadataVal.subscriptionId())
-                        .productId(metadataVal.productId())
+                        .productName(metadataVal.productName())
                         .agent(metadataVal.agent())
                         .responseQualityScore(metadataVal.responseQualityScore())
                         .subscriber(metadataVal.subscriber());

@@ -52,9 +52,9 @@ class MeteringEventTest {
                 .timeToFirstToken(100L)
                 .traceId("trace-123")
                 .taskType("summarization")
-                .organizationId("org-1")
+                .organizationName("org-1")
                 .subscriptionId("sub-1")
-                .productId("prod-1")
+                .productName("prod-1")
                 .agent("myagent")
                 .responseQualityScore(0.95)
                 .subscriber(subscriber)
@@ -85,9 +85,9 @@ class MeteringEventTest {
         assertThat(node.has("costType")).isTrue();
         assertThat(node.has("traceId")).isTrue();
         assertThat(node.has("taskType")).isTrue();
-        assertThat(node.has("organizationId")).isTrue();
+        assertThat(node.has("organizationName")).isTrue();
         assertThat(node.has("subscriptionId")).isTrue();
-        assertThat(node.has("productId")).isTrue();
+        assertThat(node.has("productName")).isTrue();
         assertThat(node.has("agent")).isTrue();
         assertThat(node.has("responseQualityScore")).isTrue();
         assertThat(node.has("subscriber")).isTrue();
@@ -127,9 +127,9 @@ class MeteringEventTest {
         assertThat(node.has("timeToFirstToken")).isFalse();
         assertThat(node.has("traceId")).isFalse();
         assertThat(node.has("taskType")).isFalse();
-        assertThat(node.has("organizationId")).isFalse();
+        assertThat(node.has("organizationName")).isFalse();
         assertThat(node.has("subscriptionId")).isFalse();
-        assertThat(node.has("productId")).isFalse();
+        assertThat(node.has("productName")).isFalse();
         assertThat(node.has("agent")).isFalse();
         assertThat(node.has("responseQualityScore")).isFalse();
         assertThat(node.has("subscriber")).isFalse();

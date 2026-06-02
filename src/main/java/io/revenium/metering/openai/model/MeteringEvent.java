@@ -72,9 +72,9 @@ public final class MeteringEvent {
     // Business context from UsageMetadata
     private final String traceId;
     private final String taskType;
-    private final String organizationId;
+    private final String organizationName;
     private final String subscriptionId;
-    private final String productId;
+    private final String productName;
     private final String agent;
     private final Double responseQualityScore;
 
@@ -107,9 +107,9 @@ public final class MeteringEvent {
         this.costType = "AI";
         this.traceId = builder.traceId;
         this.taskType = builder.taskType;
-        this.organizationId = builder.organizationId;
+        this.organizationName = builder.organizationName;
         this.subscriptionId = builder.subscriptionId;
-        this.productId = builder.productId;
+        this.productName = builder.productName;
         this.agent = builder.agent;
         this.responseQualityScore = builder.responseQualityScore;
         this.subscriber = builder.subscriber;
@@ -140,9 +140,9 @@ public final class MeteringEvent {
     public String getCostType() { return costType; }
     public String getTraceId() { return traceId; }
     public String getTaskType() { return taskType; }
-    public String getOrganizationId() { return organizationId; }
+    public String getOrganizationName() { return organizationName; }
     public String getSubscriptionId() { return subscriptionId; }
-    public String getProductId() { return productId; }
+    public String getProductName() { return productName; }
     public String getAgent() { return agent; }
     public Double getResponseQualityScore() { return responseQualityScore; }
     public Subscriber getSubscriber() { return subscriber; }
@@ -182,9 +182,9 @@ public final class MeteringEvent {
         private String outputResponse;
         private String traceId;
         private String taskType;
-        private String organizationId;
+        private String organizationName;
         private String subscriptionId;
-        private String productId;
+        private String productName;
         private String agent;
         private Double responseQualityScore;
         private Subscriber subscriber;
@@ -220,9 +220,9 @@ public final class MeteringEvent {
         public Builder outputResponse(String outputResponse) { this.outputResponse = outputResponse; return this; }
         public Builder traceId(String traceId) { this.traceId = traceId; return this; }
         public Builder taskType(String taskType) { this.taskType = taskType; return this; }
-        public Builder organizationId(String organizationId) { this.organizationId = organizationId; return this; }
+        public Builder organizationName(String organizationName) { this.organizationName = organizationName; return this; }
         public Builder subscriptionId(String subscriptionId) { this.subscriptionId = subscriptionId; return this; }
-        public Builder productId(String productId) { this.productId = productId; return this; }
+        public Builder productName(String productName) { this.productName = productName; return this; }
         public Builder agent(String agent) { this.agent = agent; return this; }
         public Builder responseQualityScore(Double responseQualityScore) { this.responseQualityScore = responseQualityScore; return this; }
         public Builder subscriber(Subscriber subscriber) { this.subscriber = subscriber; return this; }
