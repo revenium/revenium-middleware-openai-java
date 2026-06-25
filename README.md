@@ -1,3 +1,6 @@
+> [!IMPORTANT]
+> **This library is no longer actively maintained.** For current Revenium integration options, see https://revenium.ai . Existing installations and published Maven artifacts continue to function.
+
 # Revenium Middleware for OpenAI Java SDK
 
 Transparent metering middleware for the [OpenAI Java SDK](https://github.com/openai/openai-java). Wraps client services to automatically report AI usage metrics (token counts, costs, timing, model info, and business metadata) to [Revenium](https://revenium.ai) with zero changes to your application logic.
