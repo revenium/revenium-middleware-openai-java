@@ -1,5 +1,9 @@
 package io.revenium.metering.openai.provider.extraction;
 
+import com.fasterxml.jackson.annotation.JsonAutoDetect;
+import com.fasterxml.jackson.annotation.PropertyAccessor;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.openai.models.chat.completions.ChatCompletion;
 import com.openai.models.chat.completions.ChatCompletion.Choice;
 import com.openai.models.chat.completions.ChatCompletion.Choice.FinishReason;
@@ -52,6 +56,30 @@ class ChatCompletionUsageExtractorTest {
                 .build();
     }
 
+    private CompletionUsage buildUsageWithCacheAndReasoning(
+            long prompt, long completion, long total, long cachedTokens, long reasoningTokens) {
+        return CompletionUsage.builder()
+                .promptTokens(prompt)
+                .completionTokens(completion)
+                .totalTokens(total)
+                .promptTokensDetails(CompletionUsage.PromptTokensDetails.builder()
+                        .cachedTokens(cachedTokens)
+                        .build())
+                .completionTokensDetails(CompletionUsage.CompletionTokensDetails.builder()
+                        .reasoningTokens(reasoningTokens)
+                        .build())
+                .build();
+    }
+
+    /** Serializes a MeteringEvent the same way the production MeteringClient does. */
+    private String toJson(MeteringEvent event) throws Exception {
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.setVisibility(PropertyAccessor.FIELD, JsonAutoDetect.Visibility.ANY);
+        mapper.setVisibility(PropertyAccessor.GETTER, JsonAutoDetect.Visibility.NONE);
+        mapper.setVisibility(PropertyAccessor.IS_GETTER, JsonAutoDetect.Visibility.NONE);
+        return mapper.writeValueAsString(event);
+    }
+
     private ChatCompletion buildChatCompletionWithUsage(String model, CompletionUsage usage, FinishReason finishReason) {
         return ChatCompletion.builder()
                 .id("chat-id-123")
@@ -93,6 +121,52 @@ class ChatCompletionUsageExtractorTest {
         assertThat(event.getInputTokenCount()).isEqualTo(100L);
         assertThat(event.getOutputTokenCount()).isEqualTo(50L);
         assertThat(event.getTotalTokenCount()).isEqualTo(150L);
+    }
+
+    // --- Cache-read and reasoning token extraction (BACK-2413) ---
+
+    @Test
+    void extractWithCacheAndReasoningTokens_survivesIntoSerializedPayload() throws Exception {
+        // Arrange: usage with non-zero cached and reasoning tokens
+        CompletionUsage usage = buildUsageWithCacheAndReasoning(100L, 50L, 150L, 40L, 12L);
+        ChatCompletion response = buildChatCompletionWithUsage("gpt-4o", usage, FinishReason.STOP);
+
+        // Act
+        MeteringEvent event = ChatCompletionUsageExtractor.extract(
+                null, response, Provider.OPENAI, null, REQUEST_TIME, RESPONSE_TIME);
+
+        // Assert: builder-level
+        assertThat(event.getCacheReadTokenCount()).isEqualTo(40L);
+        assertThat(event.getReasoningTokenCount()).isEqualTo(12L);
+        // Cache-creation has no OpenAI equivalent — must stay null (see UsageDetailsExtractor)
+        assertThat(event.getCacheCreationTokenCount()).isNull();
+
+        // Assert: serialization-level — @JsonInclude(NON_NULL) silently drops null fields, so a
+        // builder-only assertion would not catch a field that never reaches the wire payload.
+        JsonNode node = new ObjectMapper().readTree(toJson(event));
+        assertThat(node.has("cacheReadTokenCount")).isTrue();
+        assertThat(node.get("cacheReadTokenCount").asLong()).isEqualTo(40L);
+        assertThat(node.has("reasoningTokenCount")).isTrue();
+        assertThat(node.get("reasoningTokenCount").asLong()).isEqualTo(12L);
+        assertThat(node.has("cacheCreationTokenCount")).isFalse();
+    }
+
+    @Test
+    void extractWithNoCacheOrReasoningDetails_omitsFieldsFromSerializedPayload() throws Exception {
+        // Arrange: usage with no promptTokensDetails/completionTokensDetails at all
+        CompletionUsage usage = buildUsage(100L, 50L, 150L);
+        ChatCompletion response = buildChatCompletionWithUsage("gpt-4o", usage, FinishReason.STOP);
+
+        // Act
+        MeteringEvent event = ChatCompletionUsageExtractor.extract(
+                null, response, Provider.OPENAI, null, REQUEST_TIME, RESPONSE_TIME);
+
+        // Assert
+        assertThat(event.getCacheReadTokenCount()).isNull();
+        assertThat(event.getReasoningTokenCount()).isNull();
+        JsonNode node = new ObjectMapper().readTree(toJson(event));
+        assertThat(node.has("cacheReadTokenCount")).isFalse();
+        assertThat(node.has("reasoningTokenCount")).isFalse();
     }
 
     @Test
@@ -318,9 +392,9 @@ class ChatCompletionUsageExtractorTest {
 
         assertThat(event.getTraceId()).isEqualTo("trace-abc");
         assertThat(event.getTaskType()).isEqualTo("summarization");
-        assertThat(event.getOrganizationId()).isEqualTo("org-123");
+        assertThat(event.getOrganizationName()).isEqualTo("org-123");
         assertThat(event.getSubscriptionId()).isEqualTo("sub-plan-456");
-        assertThat(event.getProductId()).isEqualTo("prod-789");
+        assertThat(event.getProductName()).isEqualTo("prod-789");
         assertThat(event.getAgent()).isEqualTo("my-agent");
         assertThat(event.getResponseQualityScore()).isEqualTo(0.95);
         assertThat(event.getSubscriber()).isSameAs(subscriber);
@@ -337,7 +411,7 @@ class ChatCompletionUsageExtractorTest {
         assertThat(event).isNotNull();
         assertThat(event.getTraceId()).isNull();
         assertThat(event.getTaskType()).isNull();
-        assertThat(event.getOrganizationId()).isNull();
+        assertThat(event.getOrganizationName()).isNull();
         assertThat(event.getSubscriber()).isNull();
     }
 
