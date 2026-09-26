@@ -1,5 +1,9 @@
 package io.revenium.metering.openai.wrapper;
 
+import com.fasterxml.jackson.annotation.JsonAutoDetect;
+import com.fasterxml.jackson.annotation.PropertyAccessor;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.openai.core.http.StreamResponse;
 import com.openai.models.responses.Response;
 import com.openai.models.responses.ResponseCompletedEvent;
@@ -62,6 +66,32 @@ class MeteringResponseStreamResponseTest {
                 .outputTokensDetails(outputDetails)
                 .totalTokens(total)
                 .build();
+    }
+
+    private ResponseUsage buildUsageWithCacheAndReasoning(
+            long input, long output, long total, long cachedTokens, long reasoningTokens) {
+        ResponseUsage.InputTokensDetails inputDetails = ResponseUsage.InputTokensDetails.builder()
+                .cachedTokens(cachedTokens)
+                .build();
+        ResponseUsage.OutputTokensDetails outputDetails = ResponseUsage.OutputTokensDetails.builder()
+                .reasoningTokens(reasoningTokens)
+                .build();
+        return ResponseUsage.builder()
+                .inputTokens(input)
+                .inputTokensDetails(inputDetails)
+                .outputTokens(output)
+                .outputTokensDetails(outputDetails)
+                .totalTokens(total)
+                .build();
+    }
+
+    /** Serializes a MeteringEvent the same way the production MeteringClient does. */
+    private String toJson(MeteringEvent event) throws Exception {
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.setVisibility(PropertyAccessor.FIELD, JsonAutoDetect.Visibility.ANY);
+        mapper.setVisibility(PropertyAccessor.GETTER, JsonAutoDetect.Visibility.NONE);
+        mapper.setVisibility(PropertyAccessor.IS_GETTER, JsonAutoDetect.Visibility.NONE);
+        return mapper.writeValueAsString(event);
     }
 
     private Response buildResponse(String model, ResponseUsage usage, ResponseStatus status) {
@@ -319,6 +349,37 @@ class MeteringResponseStreamResponseTest {
         assertThat(event.getInputTokenCount()).isEqualTo(10L);
         assertThat(event.getOutputTokenCount()).isEqualTo(20L);
         assertThat(event.getTotalTokenCount()).isEqualTo(30L);
+    }
+
+    @Test
+    void stream_capturesCacheAndReasoningTokens_survivesIntoSerializedPayload() throws Exception {
+        // Arrange: usage with non-zero cached/reasoning tokens (BACK-2413)
+        ResponseUsage usage = buildUsageWithCacheAndReasoning(10L, 20L, 30L, 6L, 4L);
+        ResponseStreamEvent completedEvent = mockCompletedEvent("gpt-4o", usage, ResponseStatus.COMPLETED);
+
+        StreamResponse<ResponseStreamEvent> delegate = mockDelegateStream(completedEvent);
+        MeteringResponseStreamResponse wrapper = buildWrapper(delegate);
+
+        ArgumentCaptor<MeteringEvent> eventCaptor = ArgumentCaptor.forClass(MeteringEvent.class);
+
+        // Act
+        wrapper.stream().forEach(e -> {});
+        wrapper.close();
+
+        // Assert: builder-level
+        verify(meteringClient).send(eventCaptor.capture());
+        MeteringEvent event = eventCaptor.getValue();
+        assertThat(event.getCacheReadTokenCount()).isEqualTo(6L);
+        assertThat(event.getReasoningTokenCount()).isEqualTo(4L);
+        assertThat(event.getCacheCreationTokenCount()).isNull();
+
+        // Assert: serialization-level — proves the fields reach the wire payload, not just the builder
+        JsonNode node = new ObjectMapper().readTree(toJson(event));
+        assertThat(node.has("cacheReadTokenCount")).isTrue();
+        assertThat(node.get("cacheReadTokenCount").asLong()).isEqualTo(6L);
+        assertThat(node.has("reasoningTokenCount")).isTrue();
+        assertThat(node.get("reasoningTokenCount").asLong()).isEqualTo(4L);
+        assertThat(node.has("cacheCreationTokenCount")).isFalse();
     }
 
     // -----------------------------------------------------------------------

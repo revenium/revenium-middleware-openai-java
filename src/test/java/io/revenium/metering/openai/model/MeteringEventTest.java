@@ -39,6 +39,8 @@ class MeteringEventTest {
                 .outputTokenCount(200L)
                 .totalTokenCount(300L)
                 .cacheCreationTokenCount(50L)
+                .cacheReadTokenCount(25L)
+                .reasoningTokenCount(10L)
                 .stopReason("END")
                 .provider("OPENAI")
                 .modelSource("openai")
@@ -69,6 +71,11 @@ class MeteringEventTest {
         assertThat(node.has("outputTokenCount")).isTrue();
         assertThat(node.has("totalTokenCount")).isTrue();
         assertThat(node.has("cacheCreationTokenCount")).isTrue();
+        assertThat(node.get("cacheCreationTokenCount").asLong()).isEqualTo(50L);
+        assertThat(node.has("cacheReadTokenCount")).isTrue();
+        assertThat(node.get("cacheReadTokenCount").asLong()).isEqualTo(25L);
+        assertThat(node.has("reasoningTokenCount")).isTrue();
+        assertThat(node.get("reasoningTokenCount").asLong()).isEqualTo(10L);
         assertThat(node.has("stopReason")).isTrue();
         assertThat(node.has("provider")).isTrue();
         assertThat(node.has("modelSource")).isTrue();

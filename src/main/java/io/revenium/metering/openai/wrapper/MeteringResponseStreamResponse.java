@@ -12,6 +12,7 @@ import io.revenium.metering.openai.model.StopReason;
 import io.revenium.metering.openai.model.UsageMetadata;
 import io.revenium.metering.openai.provider.AzureModelResolver;
 import io.revenium.metering.openai.provider.Provider;
+import io.revenium.metering.openai.provider.extraction.UsageDetailsExtractor;
 import io.revenium.metering.openai.transport.MeteringClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -94,6 +95,8 @@ final class MeteringResponseStreamResponse implements StreamResponse<ResponseStr
         Long[] inputTokens = {null};
         Long[] outputTokens = {null};
         Long[] totalTokens = {null};
+        Long[] cacheReadTokens = {null};
+        Long[] reasoningTokens = {null};
         String[] statusStr = {null};
         long requestTimeCaptured = this.requestTime;
 
@@ -103,6 +106,8 @@ final class MeteringResponseStreamResponse implements StreamResponse<ResponseStr
         final Long[] inputTokensRef = inputTokens;
         final Long[] outputTokensRef = outputTokens;
         final Long[] totalTokensRef = totalTokens;
+        final Long[] cacheReadTokensRef = cacheReadTokens;
+        final Long[] reasoningTokensRef = reasoningTokens;
         final String[] statusStrRef = statusStr;
 
         Runnable meteringAction = () -> fireMeteringIfPossible(
@@ -112,6 +117,8 @@ final class MeteringResponseStreamResponse implements StreamResponse<ResponseStr
                 inputTokensRef[0],
                 outputTokensRef[0],
                 totalTokensRef[0],
+                cacheReadTokensRef[0],
+                reasoningTokensRef[0],
                 statusStrRef[0]);
 
         pendingMeteringAction.set(meteringAction);
@@ -142,6 +149,12 @@ final class MeteringResponseStreamResponse implements StreamResponse<ResponseStr
                         inputTokens[0] = u.inputTokens();
                         outputTokens[0] = u.outputTokens();
                         totalTokens[0] = u.totalTokens();
+
+                        // Cache-read and reasoning tokens — see UsageDetailsExtractor for why
+                        // cache-creation is never populated for OpenAI.
+                        UsageDetailsExtractor.UsageDetails usageDetails = UsageDetailsExtractor.from(u);
+                        cacheReadTokens[0] = usageDetails.cacheReadTokenCount();
+                        reasoningTokens[0] = usageDetails.reasoningTokenCount();
                     });
                     statusStr[0] = r.status().map(ResponseStatus::asString).orElse(null);
                 }
@@ -190,6 +203,8 @@ final class MeteringResponseStreamResponse implements StreamResponse<ResponseStr
             Long inputTokensVal,
             Long outputTokensVal,
             Long totalTokensVal,
+            Long cacheReadTokensVal,
+            Long reasoningTokensVal,
             String statusStrVal) {
         try {
             // No events were processed — skip metering (empty stream)
@@ -223,6 +238,8 @@ final class MeteringResponseStreamResponse implements StreamResponse<ResponseStr
                     .inputTokenCount(inputTokensVal)
                     .outputTokenCount(outputTokensVal)
                     .totalTokenCount(totalTokensVal)
+                    .cacheReadTokenCount(cacheReadTokensVal)
+                    .reasoningTokenCount(reasoningTokensVal)
                     .stopReason(stopReason)
                     .requestTimeMillis(requestTimeCaptured)
                     .responseTimeMillis(responseTime)

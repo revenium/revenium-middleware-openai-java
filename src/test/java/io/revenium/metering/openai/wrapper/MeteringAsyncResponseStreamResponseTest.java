@@ -1,5 +1,9 @@
 package io.revenium.metering.openai.wrapper;
 
+import com.fasterxml.jackson.annotation.JsonAutoDetect;
+import com.fasterxml.jackson.annotation.PropertyAccessor;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.openai.core.http.AsyncStreamResponse;
 import com.openai.models.responses.Response;
 import com.openai.models.responses.ResponseCompletedEvent;
@@ -69,6 +73,32 @@ class MeteringAsyncResponseStreamResponseTest {
                 .outputTokensDetails(outputDetails)
                 .totalTokens(total)
                 .build();
+    }
+
+    private ResponseUsage buildUsageWithCacheAndReasoning(
+            long input, long output, long total, long cachedTokens, long reasoningTokens) {
+        ResponseUsage.InputTokensDetails inputDetails = ResponseUsage.InputTokensDetails.builder()
+                .cachedTokens(cachedTokens)
+                .build();
+        ResponseUsage.OutputTokensDetails outputDetails = ResponseUsage.OutputTokensDetails.builder()
+                .reasoningTokens(reasoningTokens)
+                .build();
+        return ResponseUsage.builder()
+                .inputTokens(input)
+                .inputTokensDetails(inputDetails)
+                .outputTokens(output)
+                .outputTokensDetails(outputDetails)
+                .totalTokens(total)
+                .build();
+    }
+
+    /** Serializes a MeteringEvent the same way the production MeteringClient does. */
+    private String toJson(MeteringEvent event) throws Exception {
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.setVisibility(PropertyAccessor.FIELD, JsonAutoDetect.Visibility.ANY);
+        mapper.setVisibility(PropertyAccessor.GETTER, JsonAutoDetect.Visibility.NONE);
+        mapper.setVisibility(PropertyAccessor.IS_GETTER, JsonAutoDetect.Visibility.NONE);
+        return mapper.writeValueAsString(event);
     }
 
     private Response buildResponse(String model, ResponseUsage usage, ResponseStatus status) {
@@ -292,6 +322,43 @@ class MeteringAsyncResponseStreamResponseTest {
         assertThat(event.getOutputTokenCount()).isEqualTo(25L);
         assertThat(event.getTotalTokenCount()).isEqualTo(35L);
         assertThat(event.getModel()).isEqualTo("gpt-4o");
+    }
+
+    @Test
+    void subscribe_capturesCacheAndReasoningTokens_survivesIntoSerializedPayload() throws Exception {
+        // Arrange: usage with non-zero cached/reasoning tokens (BACK-2413)
+        ResponseUsage usage = buildUsageWithCacheAndReasoning(10L, 25L, 35L, 5L, 3L);
+        ResponseStreamEvent completedEvent = buildCompletedEvent("gpt-4o", usage);
+
+        AsyncStreamResponse<ResponseStreamEvent> mockStream =
+                buildMockAsyncStream(List.of(completedEvent));
+        MeteringAsyncResponseStreamResponse wrapper = createWrapper(mockStream);
+
+        ArgumentCaptor<MeteringEvent> eventCaptor = ArgumentCaptor.forClass(MeteringEvent.class);
+
+        // Act
+        wrapper.subscribe(new AsyncStreamResponse.Handler<ResponseStreamEvent>() {
+            @Override
+            public void onNext(ResponseStreamEvent event) {}
+
+            @Override
+            public void onComplete(Optional<Throwable> error) {}
+        });
+
+        // Assert: builder-level
+        verify(meteringClient).send(eventCaptor.capture());
+        MeteringEvent event = eventCaptor.getValue();
+        assertThat(event.getCacheReadTokenCount()).isEqualTo(5L);
+        assertThat(event.getReasoningTokenCount()).isEqualTo(3L);
+        assertThat(event.getCacheCreationTokenCount()).isNull();
+
+        // Assert: serialization-level — proves the fields reach the wire payload, not just the builder
+        JsonNode node = new ObjectMapper().readTree(toJson(event));
+        assertThat(node.has("cacheReadTokenCount")).isTrue();
+        assertThat(node.get("cacheReadTokenCount").asLong()).isEqualTo(5L);
+        assertThat(node.has("reasoningTokenCount")).isTrue();
+        assertThat(node.get("reasoningTokenCount").asLong()).isEqualTo(3L);
+        assertThat(node.has("cacheCreationTokenCount")).isFalse();
     }
 
     @Test
