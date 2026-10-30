@@ -25,7 +25,9 @@ import java.util.Optional;
  * <p>Stateless utility class — all fields are extracted from the response and caller-supplied
  * parameters. Usage fields ({@code promptTokens}, {@code completionTokens}, {@code totalTokens})
  * are null-safe: if the response contains no usage data (e.g., Ollama), token counts are null
- * and a DEBUG log is emitted (decisions D-07, D-08, D-09).
+ * and a DEBUG log is emitted (decisions D-07, D-08, D-09). Cache-read and reasoning token counts
+ * are delegated to {@link UsageDetailsExtractor} — see that class for why cache-creation tokens
+ * are never populated for OpenAI.
  *
  * <p>When provider is {@link Provider#AZURE}, the model name is resolved from Azure deployment
  * name to canonical OpenAI model name via {@link AzureModelResolver#resolve(String)}.
@@ -70,12 +72,20 @@ public final class ChatCompletionUsageExtractor {
         Long inputTokens = null;
         Long outputTokens = null;
         Long totalTokens = null;
+        Long cacheReadTokens = null;
+        Long reasoningTokens = null;
 
         if (usageOpt.isPresent()) {
             CompletionUsage usage = usageOpt.get();
             inputTokens = usage.promptTokens();       // long → Long autobox
             outputTokens = usage.completionTokens();  // long → Long autobox
             totalTokens = usage.totalTokens();        // long → Long autobox
+
+            // Cache-read and reasoning tokens — see UsageDetailsExtractor for why
+            // cache-creation is never populated for OpenAI.
+            UsageDetailsExtractor.UsageDetails usageDetails = UsageDetailsExtractor.from(usage);
+            cacheReadTokens = usageDetails.cacheReadTokenCount();
+            reasoningTokens = usageDetails.reasoningTokenCount();
         } else {
             log.debug("ChatCompletion response has no usage field — provider may be Ollama or usage was omitted");
         }
@@ -102,6 +112,8 @@ public final class ChatCompletionUsageExtractor {
                 .inputTokenCount(inputTokens)
                 .outputTokenCount(outputTokens)
                 .totalTokenCount(totalTokens)
+                .cacheReadTokenCount(cacheReadTokens)
+                .reasoningTokenCount(reasoningTokens)
                 .stopReason(stopReason)
                 .requestTimeMillis(requestTime)
                 .responseTimeMillis(responseTime)

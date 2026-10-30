@@ -8,6 +8,7 @@ import io.revenium.metering.openai.model.StopReason;
 import io.revenium.metering.openai.model.UsageMetadata;
 import io.revenium.metering.openai.provider.AzureModelResolver;
 import io.revenium.metering.openai.provider.Provider;
+import io.revenium.metering.openai.provider.extraction.UsageDetailsExtractor;
 import io.revenium.metering.openai.transport.MeteringClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -60,6 +61,8 @@ final class MeteringAsyncResponseStreamResponse implements AsyncStreamResponse<R
         Long[] inputTokens = {null};
         Long[] outputTokens = {null};
         Long[] totalTokens = {null};
+        Long[] cacheReadTokens = {null};
+        Long[] reasoningTokens = {null};
         long requestTimeCaptured = this.requestTime;
 
         final long[] firstTokenTimeRef = firstTokenTime;
@@ -68,6 +71,8 @@ final class MeteringAsyncResponseStreamResponse implements AsyncStreamResponse<R
         final Long[] inputTokensRef = inputTokens;
         final Long[] outputTokensRef = outputTokens;
         final Long[] totalTokensRef = totalTokens;
+        final Long[] cacheReadTokensRef = cacheReadTokens;
+        final Long[] reasoningTokensRef = reasoningTokens;
 
         delegate.subscribe(new Handler<ResponseStreamEvent>() {
             @Override
@@ -94,6 +99,12 @@ final class MeteringAsyncResponseStreamResponse implements AsyncStreamResponse<R
                                 inputTokensRef[0] = u.inputTokens();
                                 outputTokensRef[0] = u.outputTokens();
                                 totalTokensRef[0] = u.totalTokens();
+
+                                // Cache-read and reasoning tokens — see UsageDetailsExtractor for
+                                // why cache-creation is never populated for OpenAI.
+                                UsageDetailsExtractor.UsageDetails usageDetails = UsageDetailsExtractor.from(u);
+                                cacheReadTokensRef[0] = usageDetails.cacheReadTokenCount();
+                                reasoningTokensRef[0] = usageDetails.reasoningTokenCount();
                             });
                         });
                     }
@@ -128,6 +139,8 @@ final class MeteringAsyncResponseStreamResponse implements AsyncStreamResponse<R
                             inputTokensRef[0],
                             outputTokensRef[0],
                             totalTokensRef[0],
+                            cacheReadTokensRef[0],
+                            reasoningTokensRef[0],
                             metadata,
                             provider,
                             meteringClient);
@@ -159,6 +172,8 @@ final class MeteringAsyncResponseStreamResponse implements AsyncStreamResponse<R
             Long inputTokensVal,
             Long outputTokensVal,
             Long totalTokensVal,
+            Long cacheReadTokensVal,
+            Long reasoningTokensVal,
             UsageMetadata metadataVal,
             Provider providerVal,
             MeteringClient meteringClient) {
@@ -184,6 +199,8 @@ final class MeteringAsyncResponseStreamResponse implements AsyncStreamResponse<R
                     .inputTokenCount(inputTokensVal)
                     .outputTokenCount(outputTokensVal)
                     .totalTokenCount(totalTokensVal)
+                    .cacheReadTokenCount(cacheReadTokensVal)
+                    .reasoningTokenCount(reasoningTokensVal)
                     .stopReason(stopReason)
                     .requestTimeMillis(requestTimeCaptured)
                     .responseTimeMillis(responseTime)

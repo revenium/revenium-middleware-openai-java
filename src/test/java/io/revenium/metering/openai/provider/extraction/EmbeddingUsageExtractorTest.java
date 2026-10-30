@@ -221,9 +221,9 @@ class EmbeddingUsageExtractorTest {
 
         assertThat(event.getTraceId()).isEqualTo("embed-trace-xyz");
         assertThat(event.getTaskType()).isEqualTo("semantic-search");
-        assertThat(event.getOrganizationId()).isEqualTo("org-embed-123");
+        assertThat(event.getOrganizationName()).isEqualTo("org-embed-123");
         assertThat(event.getSubscriptionId()).isEqualTo("sub-embed-plan");
-        assertThat(event.getProductId()).isEqualTo("prod-embed-789");
+        assertThat(event.getProductName()).isEqualTo("prod-embed-789");
         assertThat(event.getAgent()).isEqualTo("embed-agent");
         assertThat(event.getResponseQualityScore()).isEqualTo(0.85);
         assertThat(event.getSubscriber()).isSameAs(subscriber);
@@ -238,7 +238,7 @@ class EmbeddingUsageExtractorTest {
 
         assertThat(event).isNotNull();
         assertThat(event.getTraceId()).isNull();
-        assertThat(event.getOrganizationId()).isNull();
+        assertThat(event.getOrganizationName()).isNull();
         assertThat(event.getSubscriber()).isNull();
     }
 }

@@ -1,5 +1,9 @@
 package io.revenium.metering.openai.wrapper;
 
+import com.fasterxml.jackson.annotation.JsonAutoDetect;
+import com.fasterxml.jackson.annotation.PropertyAccessor;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.openai.core.RequestOptions;
 import com.openai.core.http.StreamResponse;
 import com.openai.models.chat.completions.ChatCompletion;
@@ -88,6 +92,30 @@ class MeteringChatCompletionServiceTest {
                 .completionTokens(completion)
                 .totalTokens(total)
                 .build();
+    }
+
+    private CompletionUsage buildUsageWithCacheAndReasoning(
+            long prompt, long completion, long total, long cachedTokens, long reasoningTokens) {
+        return CompletionUsage.builder()
+                .promptTokens(prompt)
+                .completionTokens(completion)
+                .totalTokens(total)
+                .promptTokensDetails(CompletionUsage.PromptTokensDetails.builder()
+                        .cachedTokens(cachedTokens)
+                        .build())
+                .completionTokensDetails(CompletionUsage.CompletionTokensDetails.builder()
+                        .reasoningTokens(reasoningTokens)
+                        .build())
+                .build();
+    }
+
+    /** Serializes a MeteringEvent the same way the production MeteringClient does. */
+    private String toJson(MeteringEvent event) throws Exception {
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.setVisibility(PropertyAccessor.FIELD, JsonAutoDetect.Visibility.ANY);
+        mapper.setVisibility(PropertyAccessor.GETTER, JsonAutoDetect.Visibility.NONE);
+        mapper.setVisibility(PropertyAccessor.IS_GETTER, JsonAutoDetect.Visibility.NONE);
+        return mapper.writeValueAsString(event);
     }
 
     private ChatCompletion buildChatCompletion(String model, CompletionUsage usage, FinishReason finishReason) {
@@ -296,6 +324,40 @@ class MeteringChatCompletionServiceTest {
         assertThat(event.getOutputTokenCount()).isEqualTo(15L);
         assertThat(event.getTotalTokenCount()).isEqualTo(20L);
         assertThat(event.getIsStreamed()).isTrue();
+    }
+
+    @Test
+    void streamingCreate_capturesCacheAndReasoningTokens_survivesIntoSerializedPayload() throws Exception {
+        // Arrange: final chunk usage carries non-zero cached/reasoning tokens (BACK-2413)
+        CompletionUsage finalUsage = buildUsageWithCacheAndReasoning(5L, 15L, 20L, 3L, 6L);
+        ChatCompletionChunk chunk1 = buildChunk("gpt-4o", "Hello", false, null);
+        ChatCompletionChunk finalChunk = buildChunk("gpt-4o", null, true, finalUsage);
+
+        StreamResponse<ChatCompletionChunk> mockStream = buildMockStreamResponse(chunk1, finalChunk);
+        when(delegate.createStreaming(any(ChatCompletionCreateParams.class), any(RequestOptions.class)))
+                .thenReturn(mockStream);
+
+        ArgumentCaptor<MeteringEvent> eventCaptor = ArgumentCaptor.forClass(MeteringEvent.class);
+
+        // Act
+        StreamResponse<ChatCompletionChunk> result = wrapper.createStreaming(buildParams(), RequestOptions.none());
+        result.stream().forEach(c -> {});
+        result.close();
+
+        // Assert: builder-level
+        verify(meteringClient).send(eventCaptor.capture());
+        MeteringEvent event = eventCaptor.getValue();
+        assertThat(event.getCacheReadTokenCount()).isEqualTo(3L);
+        assertThat(event.getReasoningTokenCount()).isEqualTo(6L);
+        assertThat(event.getCacheCreationTokenCount()).isNull();
+
+        // Assert: serialization-level — proves the fields reach the wire payload, not just the builder
+        JsonNode node = new ObjectMapper().readTree(toJson(event));
+        assertThat(node.has("cacheReadTokenCount")).isTrue();
+        assertThat(node.get("cacheReadTokenCount").asLong()).isEqualTo(3L);
+        assertThat(node.has("reasoningTokenCount")).isTrue();
+        assertThat(node.get("reasoningTokenCount").asLong()).isEqualTo(6L);
+        assertThat(node.has("cacheCreationTokenCount")).isFalse();
     }
 
     @Test

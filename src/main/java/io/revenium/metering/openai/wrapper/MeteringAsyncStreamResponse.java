@@ -8,6 +8,7 @@ import io.revenium.metering.openai.model.StopReason;
 import io.revenium.metering.openai.model.UsageMetadata;
 import io.revenium.metering.openai.provider.AzureModelResolver;
 import io.revenium.metering.openai.provider.Provider;
+import io.revenium.metering.openai.provider.extraction.UsageDetailsExtractor;
 import io.revenium.metering.openai.transport.MeteringClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -219,10 +220,18 @@ final class MeteringAsyncStreamResponse implements AsyncStreamResponse<ChatCompl
             Long inputTokens = null;
             Long outputTokens = null;
             Long totalTokens = null;
+            Long cacheReadTokens = null;
+            Long reasoningTokens = null;
             if (usageVal != null) {
                 inputTokens = usageVal.promptTokens();
                 outputTokens = usageVal.completionTokens();
                 totalTokens = usageVal.totalTokens();
+
+                // Cache-read and reasoning tokens — see UsageDetailsExtractor for why
+                // cache-creation is never populated for OpenAI.
+                UsageDetailsExtractor.UsageDetails usageDetails = UsageDetailsExtractor.from(usageVal);
+                cacheReadTokens = usageDetails.cacheReadTokenCount();
+                reasoningTokens = usageDetails.reasoningTokenCount();
             }
 
             // Azure deployment name resolution
@@ -249,6 +258,8 @@ final class MeteringAsyncStreamResponse implements AsyncStreamResponse<ChatCompl
                     .inputTokenCount(inputTokens)
                     .outputTokenCount(outputTokens)
                     .totalTokenCount(totalTokens)
+                    .cacheReadTokenCount(cacheReadTokens)
+                    .reasoningTokenCount(reasoningTokens)
                     .stopReason(stopReason)
                     .requestTimeMillis(requestTimeCaptured)
                     .responseTimeMillis(responseTime)

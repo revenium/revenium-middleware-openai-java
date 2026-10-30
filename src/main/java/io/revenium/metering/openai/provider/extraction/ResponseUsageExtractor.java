@@ -33,6 +33,8 @@ import java.util.Optional;
  *
  * <p>Usage fields ({@code inputTokens}, {@code outputTokens}, {@code totalTokens}) are null-safe:
  * if the response contains no usage data, token counts are null and a DEBUG log is emitted.
+ * Cache-read and reasoning token counts are delegated to {@link UsageDetailsExtractor} — see
+ * that class for why cache-creation tokens are never populated for OpenAI.
  *
  * <p>When provider is {@link Provider#AZURE}, the model name is resolved from Azure deployment
  * name to canonical OpenAI model name via {@link AzureModelResolver#resolve(String)}.
@@ -77,12 +79,20 @@ public final class ResponseUsageExtractor {
         Long inputTokens = null;
         Long outputTokens = null;
         Long totalTokens = null;
+        Long cacheReadTokens = null;
+        Long reasoningTokens = null;
 
         if (usageOpt.isPresent()) {
             ResponseUsage usage = usageOpt.get();
             inputTokens = usage.inputTokens();    // long → Long autobox
             outputTokens = usage.outputTokens();  // long → Long autobox
             totalTokens = usage.totalTokens();    // long → Long autobox
+
+            // Cache-read and reasoning tokens — see UsageDetailsExtractor for why
+            // cache-creation is never populated for OpenAI.
+            UsageDetailsExtractor.UsageDetails usageDetails = UsageDetailsExtractor.from(usage);
+            cacheReadTokens = usageDetails.cacheReadTokenCount();
+            reasoningTokens = usageDetails.reasoningTokenCount();
         } else {
             log.debug("Response has no usage field — provider may omit usage data");
         }
@@ -111,6 +121,8 @@ public final class ResponseUsageExtractor {
                 .inputTokenCount(inputTokens)
                 .outputTokenCount(outputTokens)
                 .totalTokenCount(totalTokens)
+                .cacheReadTokenCount(cacheReadTokens)
+                .reasoningTokenCount(reasoningTokens)
                 .stopReason(stopReason)
                 .requestTimeMillis(requestTime)
                 .responseTimeMillis(responseTime)
